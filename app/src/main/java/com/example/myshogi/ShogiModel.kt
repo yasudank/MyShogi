@@ -52,6 +52,7 @@ class ShogiGame {
     var history by mutableStateOf<List<GameState>>(emptyList())
     var mattaCountSente by mutableStateOf(3)
     var mattaCountGote by mutableStateOf(3)
+    var winner by mutableStateOf<Player?>(null)
 
     companion object {
         val Saver: Saver<ShogiGame, *> = listSaver(
@@ -63,7 +64,8 @@ class ShogiGame {
                     game.capturedGote,
                     game.history,
                     game.mattaCountSente,
-                    game.mattaCountGote
+                    game.mattaCountGote,
+                    game.winner?.name
                 )
             },
             restore = { list ->
@@ -75,6 +77,7 @@ class ShogiGame {
                     history = list[4] as List<GameState>
                     mattaCountSente = list[5] as Int
                     mattaCountGote = list[6] as Int
+                    winner = (list[7] as String?)?.let { Player.valueOf(it) }
                 }
             }
         )
@@ -104,7 +107,7 @@ class ShogiGame {
     }
 
     fun undoMove() {
-        if (history.isNotEmpty()) {
+        if (history.isNotEmpty() && winner == null) {
             val playerWhoJustMoved = turn.opponent()
             if (playerWhoJustMoved == Player.SENTE) {
                 if (mattaCountSente > 0) mattaCountSente-- else return
@@ -129,6 +132,7 @@ class ShogiGame {
         history = emptyList()
         mattaCountSente = 3
         mattaCountGote = 3
+        winner = null
         setupInitialBoard()
     }
 

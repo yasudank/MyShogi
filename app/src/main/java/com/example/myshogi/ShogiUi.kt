@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -48,6 +49,15 @@ fun ShogiScreen() {
     val selection = rememberSaveable { mutableStateOf<Selection?>(null) }
     val promotionRequest = rememberSaveable { mutableStateOf<PromotionRequest?>(null) }
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
+    val showCheckDialog = remember { mutableStateOf<Player?>(null) }
+
+    LaunchedEffect(game.turn) {
+        if (game.winner == null && game.isCheck(game.turn)) {
+            showCheckDialog.value = game.turn
+            delay(2000)
+            showCheckDialog.value = null
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -104,7 +114,9 @@ fun ShogiScreen() {
                         Text("残:${game.mattaCountGote}", fontSize = 10.sp, color = Color.Gray)
                     }
                 }
-                CapturedPiecesView(game.capturedGote, Player.GOTE, selection.value) { selection.value = it }
+                CapturedPiecesView(game.capturedGote, Player.GOTE, selection.value) { 
+                    if (game.winner == null) selection.value = it 
+                }
             }
 
             // Board
@@ -136,11 +148,15 @@ fun ShogiScreen() {
                 }
 
                 val currentSelection = selection.value
-                val validMoves = remember(currentSelection, game.board, game.turn) {
-                    when (currentSelection) {
-                        is Selection.Board -> game.getValidMoves(currentSelection.pos)
-                        is Selection.Captured -> game.getValidDrops(currentSelection.type, currentSelection.owner)
-                        else -> emptyList()
+                val validMoves = remember(currentSelection, game.board, game.turn, game.winner) {
+                    if (game.winner != null) {
+                        emptyList()
+                    } else {
+                        when (currentSelection) {
+                            is Selection.Board -> game.getValidMoves(currentSelection.pos)
+                            is Selection.Captured -> game.getValidDrops(currentSelection.type, currentSelection.owner)
+                            else -> emptyList()
+                        }
                     }
                 }
 
@@ -155,7 +171,7 @@ fun ShogiScreen() {
                             modifier = Modifier
                                 .offset(x = cellSize * col, y = cellSize * row)
                                 .size(cellSize)
-                                .clickable {
+                                .clickable(enabled = game.winner == null) {
                                     handleBoardClick(pos, game, selection.value, validMoves, { selection.value = it }, { promotionRequest.value = it })
                                 }
                                 .background(
@@ -177,7 +193,9 @@ fun ShogiScreen() {
 
             // Sente Info & Captured
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CapturedPiecesView(game.capturedSente, Player.SENTE, selection.value) { selection.value = it }
+                CapturedPiecesView(game.capturedSente, Player.SENTE, selection.value) { 
+                    if (game.winner == null) selection.value = it 
+                }
                 val isSenteTurn = game.turn == Player.SENTE
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -222,15 +240,6 @@ fun ShogiScreen() {
             }
             
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (game.isCheck(game.turn)) {
-                    Text(
-                        text = "王手！",
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Color.Red,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Serif
-                    )
-                }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { showResetDialog.value = true },
@@ -267,6 +276,57 @@ fun ShogiScreen() {
             }
         )
     }
+
+    showCheckDialog.value?.let { player ->
+        CheckDialog(player)
+    }
+
+    game.winner?.let { winner ->
+        GameOverDialog(winner) { game.resetGame() }
+    }
+}
+
+@Composable
+fun CheckDialog(player: Player) {
+    val rotation = if (player == Player.GOTE) 180f else 0f
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.rotate(rotation),
+            colors = CardDefaults.cardColors(containerColor = Color.Red.copy(alpha = 0.9f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Text(
+                text = "王手！",
+                modifier = Modifier.padding(24.dp),
+                style = MaterialTheme.typography.displayMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif
+            )
+        }
+    }
+}
+
+@Composable
+fun GameOverDialog(winner: Player, onReset: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("対局終了", fontFamily = FontFamily.Serif) },
+        text = {
+            Text(
+                text = "${if (winner == Player.SENTE) "先手" else "後手"} の勝ちです！",
+                fontFamily = FontFamily.Serif
+            )
+        },
+        confirmButton = {
+            Button(onClick = onReset) {
+                Text("新しく対局を始める", fontFamily = FontFamily.Serif)
+            }
+        }
+    )
 }
 
 @Composable
@@ -397,6 +457,7 @@ fun handleBoardClick(
     onSelectionChange: (Selection?) -> Unit,
     onPromotionRequest: (PromotionRequest?) -> Unit
 ) {
+    if (game.winner != null) return
     when (selection) {
         null -> {
             val piece = game.board[pos]
@@ -454,6 +515,9 @@ fun executeMove(from: Position, to: Position, game: ShogiGame, promote: Boolean)
     
     val newBoard = game.board.toMutableMap()
     if (targetPiece != null) {
+        if (targetPiece.type == PieceType.KING) {
+            game.winner = game.turn
+        }
         if (game.turn == Player.SENTE) {
             game.capturedSente += demote(targetPiece.type)
         } else {
