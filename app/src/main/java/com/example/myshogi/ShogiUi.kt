@@ -45,9 +45,9 @@ val ShogiPieceShape = GenericShape { size, _ ->
 @Composable
 fun ShogiScreen() {
     val game = rememberSaveable(saver = ShogiGame.Saver) { ShogiGame() }
-    var selection by rememberSaveable { mutableStateOf<Selection?>(null) }
-    var promotionRequest by rememberSaveable { mutableStateOf<PromotionRequest?>(null) }
-    var showResetDialog by rememberSaveable { mutableStateOf(false) }
+    val selection = rememberSaveable { mutableStateOf<Selection?>(null) }
+    val promotionRequest = rememberSaveable { mutableStateOf<PromotionRequest?>(null) }
+    val showResetDialog = rememberSaveable { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -104,7 +104,7 @@ fun ShogiScreen() {
                         Text("残:${game.mattaCountGote}", fontSize = 10.sp, color = Color.Gray)
                     }
                 }
-                CapturedPiecesView(game.capturedGote, Player.GOTE, selection) { selection = it }
+                CapturedPiecesView(game.capturedGote, Player.GOTE, selection.value) { selection.value = it }
             }
 
             // Board
@@ -135,7 +135,7 @@ fun ShogiScreen() {
                     }
                 }
 
-                val currentSelection = selection
+                val currentSelection = selection.value
                 val validMoves = remember(currentSelection, game.board, game.turn) {
                     when (currentSelection) {
                         is Selection.Board -> game.getValidMoves(currentSelection.pos)
@@ -156,7 +156,7 @@ fun ShogiScreen() {
                                 .offset(x = cellSize * col, y = cellSize * row)
                                 .size(cellSize)
                                 .clickable {
-                                    handleBoardClick(pos, game, selection, validMoves, { selection = it }, { promotionRequest = it })
+                                    handleBoardClick(pos, game, selection.value, validMoves, { selection.value = it }, { promotionRequest.value = it })
                                 }
                                 .background(
                                     when {
@@ -177,7 +177,7 @@ fun ShogiScreen() {
 
             // Sente Info & Captured
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CapturedPiecesView(game.capturedSente, Player.SENTE, selection) { selection = it }
+                CapturedPiecesView(game.capturedSente, Player.SENTE, selection.value) { selection.value = it }
                 val isSenteTurn = game.turn == Player.SENTE
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -233,7 +233,7 @@ fun ShogiScreen() {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { showResetDialog = true },
+                    onClick = { showResetDialog.value = true },
                     modifier = Modifier.height(36.dp),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
                 ) {
@@ -243,27 +243,27 @@ fun ShogiScreen() {
         }
     }
 
-    if (showResetDialog) {
+    if (showResetDialog.value) {
         ResetConfirmationDialog(
             onConfirm = {
                 game.resetGame()
-                selection = null
-                promotionRequest = null
-                showResetDialog = false
+                selection.value = null
+                promotionRequest.value = null
+                showResetDialog.value = false
             },
-            onDismiss = { showResetDialog = false }
+            onDismiss = { showResetDialog.value = false }
         )
     }
 
-    promotionRequest?.let { request ->
+    promotionRequest.value?.let { request ->
         PromotionDialog(
             piece = request.piece,
             onConfirm = { promote ->
                 executeMove(request.from, request.to, game, promote)
-                promotionRequest = null
+                promotionRequest.value = null
             },
             onDismiss = {
-                promotionRequest = null
+                promotionRequest.value = null
             }
         )
     }
@@ -455,9 +455,9 @@ fun executeMove(from: Position, to: Position, game: ShogiGame, promote: Boolean)
     val newBoard = game.board.toMutableMap()
     if (targetPiece != null) {
         if (game.turn == Player.SENTE) {
-            game.capturedSente = game.capturedSente + demote(targetPiece.type)
+            game.capturedSente += demote(targetPiece.type)
         } else {
-            game.capturedGote = game.capturedGote + demote(targetPiece.type)
+            game.capturedGote += demote(targetPiece.type)
         }
     }
     newBoard.remove(from)
