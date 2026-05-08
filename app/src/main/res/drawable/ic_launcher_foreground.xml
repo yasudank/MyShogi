@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Shogi Piece Shape (Pentagon) - Slightly smaller to avoid clipping -->
+    <path
+        android:fillColor="#FFE4B5"
+        android:strokeColor="#8B4513"
+        android:strokeWidth="1.5"
+        android:pathData="M54,28 L78,40 L82,80 L26,80 L30,40 Z" />
+
+    <!-- Character "王" (Redesigned with Serif-like paths) -->
+    <group android:translateX="38" android:translateY="44">
+        <!-- Top bar with serifs -->
+        <path android:fillColor="#000000" android:pathData="M2,4 L30,4 L30,6 L2,6 Z" />
+        <path android:fillColor="#000000" android:pathData="M1,3 L3,3 L3,7 L1,7 Z" /> <!-- left serif -->
+        <path android:fillColor="#000000" android:pathData="M29,3 L31,3 L31,7 L29,7 Z" /> <!-- right serif -->
+
+        <!-- Middle bar -->
+        <path android:fillColor="#000000" android:pathData="M6,15 L26,15 L26,16.5 L6,16.5 Z" />
+
+        <!-- Bottom bar with serifs -->
+        <path android:fillColor="#000000" android:pathData="M0,27 L32,27 L32,29.5 L0,29.5 Z" />
+        <path android:fillColor="#000000" android:pathData="M0,26 L2,26 L2,30.5 L0,30.5 Z" /> <!-- left serif -->
+        <path android:fillColor="#000000" android:pathData="M30,26 L32,26 L32,30.5 L30,30.5 Z" /> <!-- right serif -->
+
+        <!-- Vertical bar (tapered like Mincho) -->
+        <path android:fillColor="#000000" android:pathData="M14.5,4 L17.5,4 L17.5,28 L14.5,28 Z" />
+    </group>
+</vector>
