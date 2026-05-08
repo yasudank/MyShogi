@@ -56,6 +56,8 @@ fun ShogiScreen() {
             showCheckDialog.value = game.turn
             delay(2000)
             showCheckDialog.value = null
+        } else {
+            showCheckDialog.value = null
         }
     }
 
@@ -278,7 +280,7 @@ fun ShogiScreen() {
     }
 
     showCheckDialog.value?.let { player ->
-        CheckDialog(player)
+        CheckDialog(player) { showCheckDialog.value = null }
     }
 
     game.winner?.let { winner ->
@@ -287,10 +289,12 @@ fun ShogiScreen() {
 }
 
 @Composable
-fun CheckDialog(player: Player) {
+fun CheckDialog(player: Player, onDismiss: () -> Unit) {
     val rotation = if (player == Player.GOTE) 180f else 0f
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
         Card(
