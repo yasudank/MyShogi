@@ -293,7 +293,9 @@ fun ResetConfirmationDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
 
 @Composable
 fun PromotionDialog(piece: Piece, onConfirm: (Boolean) -> Unit, onDismiss: () -> Unit) {
+    val rotation = if (piece.owner == Player.GOTE) 180f else 0f
     AlertDialog(
+        modifier = Modifier.rotate(rotation),
         onDismissRequest = onDismiss,
         title = { Text("成りますか？", fontFamily = FontFamily.Serif) },
         text = { Text("${piece.type.label} を成りますか？", fontFamily = FontFamily.Serif) },
