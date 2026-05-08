@@ -69,6 +69,7 @@ class ShogiGame {
                 )
             },
             restore = { list ->
+                @Suppress("UNCHECKED_CAST")
                 ShogiGame().apply {
                     board = list[0] as Map<Position, Piece>
                     turn = list[1] as Player
@@ -89,21 +90,6 @@ class ShogiGame {
 
     fun saveState() {
         history = history + GameState(board, turn, capturedSente, capturedGote)
-    }
-
-    fun canUndo(): Boolean {
-        if (history.isEmpty()) return false
-        val lastPlayer = history.last().turn // This is actually the player who IS about to move in the last state
-        // Wait, if it's Sente's turn now, the last move was made by Gote.
-        // If we want to undo Gote's move, we go back 1 state.
-        // But the user usually wants to undo THEIR OWN last move.
-        // If Sente wants to undo their move, they need to go back 2 states (Gote's move and Sente's move).
-        // Let's keep it simple: "Matta" undoes exactly ONE half-move (the immediate previous one).
-        // The person whose turn it is now is the one who "calls" Matta? 
-        // Usually Matta is "I want to take back the move I just made".
-        // So if it's Gote's turn, Sente just moved and wants to take it back.
-        val playerWhoJustMoved = turn.opponent()
-        return if (playerWhoJustMoved == Player.SENTE) mattaCountSente > 0 else mattaCountGote > 0
     }
 
     fun undoMove() {
