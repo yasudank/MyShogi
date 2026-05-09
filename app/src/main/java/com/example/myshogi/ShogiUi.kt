@@ -1,5 +1,6 @@
 package com.example.myshogi
 
+import android.media.MediaPlayer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +22,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -46,6 +48,23 @@ val ShogiPieceShape = GenericShape { size, _ ->
 
 @Composable
 fun ShogiScreen() {
+    val context = LocalContext.current
+    val mediaPlayer = remember { MediaPlayer.create(context, R.raw.koma_oto) }
+    
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer.release()
+        }
+    }
+
+    val playSound = {
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.stop()
+            mediaPlayer.prepare()
+        }
+        mediaPlayer.start()
+    }
+
     val game = rememberSaveable(saver = ShogiGame.Saver) { ShogiGame() }
     val selection = rememberSaveable { mutableStateOf<Selection?>(null) }
     val promotionRequest = rememberSaveable { mutableStateOf<PromotionRequest?>(null) }
@@ -181,7 +200,7 @@ fun ShogiScreen() {
                                 .offset(x = cellSize * col, y = cellSize * row)
                                 .size(cellSize)
                                 .clickable(enabled = game.winner == null) {
-                                    handleBoardClick(pos, game, selection.value, validMoves, { selection.value = it }, { promotionRequest.value = it })
+                                    handleBoardClick(pos, game, selection.value, validMoves, { selection.value = it }, { promotionRequest.value = it }, playSound)
                                 }
                                 .background(
                                     when {
@@ -278,6 +297,7 @@ fun ShogiScreen() {
             piece = request.piece,
             onConfirm = { promote ->
                 executeMove(request.from, request.to, game, promote)
+                playSound()
                 promotionRequest.value = null
             },
             onDismiss = {
@@ -466,7 +486,8 @@ fun handleBoardClick(
     selection: Selection?,
     validMoves: List<Position>,
     onSelectionChange: (Selection?) -> Unit,
-    onPromotionRequest: (PromotionRequest?) -> Unit
+    onPromotionRequest: (PromotionRequest?) -> Unit,
+    onMoveExecuted: () -> Unit
 ) {
     if (game.winner != null) return
     when (selection) {
@@ -484,6 +505,7 @@ fun handleBoardClick(
                 if (game.canPromote(piece, selection.pos, pos)) {
                     if (game.mustPromote(piece, pos)) {
                         executeMove(selection.pos, pos, game, true)
+                        onMoveExecuted()
                         onSelectionChange(null)
                     } else {
                         onPromotionRequest(PromotionRequest(selection.pos, pos, piece))
@@ -491,6 +513,7 @@ fun handleBoardClick(
                     }
                 } else {
                     executeMove(selection.pos, pos, game, false)
+                    onMoveExecuted()
                     onSelectionChange(null)
                 }
             } else {
@@ -513,6 +536,7 @@ fun handleBoardClick(
                 }
                 game.board = newBoard
                 game.turn = game.turn.opponent()
+                onMoveExecuted()
                 onSelectionChange(null)
             }
         }
