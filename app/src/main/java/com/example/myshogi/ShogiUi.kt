@@ -288,8 +288,7 @@ fun ShogiScreen() {
                         fontFamily = FontFamily.Serif
                     )
 
-                    if (gameMode.value == GameMode.HUMAN_VS_HUMAN
-                        && game.turn == Player.GOTE && game.history.isNotEmpty() && game.mattaCountSente > 0) {
+                    if (game.turn == Player.GOTE && game.history.isNotEmpty() && game.mattaCountSente > 0) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
                             onClick = { game.undoMove() },
@@ -298,7 +297,7 @@ fun ShogiScreen() {
                         ) {
                             Text("待った (${game.mattaCountSente})", fontSize = 12.sp, fontFamily = FontFamily.Serif)
                         }
-                    } else if (gameMode.value == GameMode.HUMAN_VS_HUMAN && game.mattaCountSente < 3) {
+                    } else if (game.mattaCountSente < 3) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("残:${game.mattaCountSente}", fontSize = 10.sp, color = Color.Gray)
                     }
