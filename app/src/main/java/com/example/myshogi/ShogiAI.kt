@@ -42,3 +42,68 @@ object ShogiEvaluator {
         return score
     }
 }
+
+class ShogiAI(val aiPlayer: Player, val maxDepth: Int = 3) {
+
+    /**
+     * 現在局面から最善手を返す。合法手がない場合は null。
+     */
+    fun bestMove(state: GameState): Move? {
+        var bestScore = Int.MIN_VALUE
+        var bestMove: Move? = null
+
+        for (move in getAllMoves(state, aiPlayer)) {
+            val next = applyMove(state, move)
+            val score = alphaBeta(next, maxDepth - 1, Int.MIN_VALUE, Int.MAX_VALUE, false)
+            if (score > bestScore) {
+                bestScore = score
+                bestMove = move
+            }
+        }
+        return bestMove
+    }
+
+    /**
+     * アルファベータ枝刈りによる再帰探索。
+     * isMaximizing = true  → aiPlayer の番（スコア最大化）
+     * isMaximizing = false → 相手の番（スコア最小化）
+     */
+    private fun alphaBeta(
+        state: GameState,
+        depth: Int,
+        alpha: Int,
+        beta: Int,
+        isMaximizing: Boolean
+    ): Int {
+        // 葉ノード：評価値を返す
+        if (depth == 0) return ShogiEvaluator.evaluate(state, aiPlayer)
+
+        val currentPlayer = if (isMaximizing) aiPlayer else aiPlayer.opponent()
+        val moves = getAllMoves(state, currentPlayer)
+
+        // 合法手なし（詰み相当）
+        if (moves.isEmpty()) return ShogiEvaluator.evaluate(state, aiPlayer)
+
+        return if (isMaximizing) {
+            var maxScore = Int.MIN_VALUE
+            var a = alpha
+            for (move in moves) {
+                val score = alphaBeta(applyMove(state, move), depth - 1, a, beta, false)
+                if (score > maxScore) maxScore = score
+                if (score > a) a = score
+                if (a >= beta) break  // ベータ枝刈り
+            }
+            maxScore
+        } else {
+            var minScore = Int.MAX_VALUE
+            var b = beta
+            for (move in moves) {
+                val score = alphaBeta(applyMove(state, move), depth - 1, alpha, b, true)
+                if (score < minScore) minScore = score
+                if (score < b) b = score
+                if (alpha >= b) break  // アルファ枝刈り
+            }
+            minScore
+        }
+    }
+}
