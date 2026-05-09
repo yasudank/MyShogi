@@ -91,6 +91,7 @@ fun ShogiScreen() {
     val promotionRequest = rememberSaveable { mutableStateOf<PromotionRequest?>(null) }
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
     val showCheckDialog = remember { mutableStateOf<Player?>(null) }
+    val showCheckmateDialog = rememberSaveable { mutableStateOf(false) }
     val gameMode = rememberSaveable { mutableStateOf(GameMode.HUMAN_VS_HUMAN) }
     val pendingModeChange = rememberSaveable { mutableStateOf<GameMode?>(null) }
     val isComputerThinking = remember { mutableStateOf(false) }
@@ -107,6 +108,7 @@ fun ShogiScreen() {
         selection.value = null
         promotionRequest.value = null
         isComputerThinking.value = false
+        showCheckmateDialog.value = false
     }
 
     fun handleSenteMatta() {
@@ -137,6 +139,13 @@ fun ShogiScreen() {
 
     // 王手チェックとAIターン処理
     LaunchedEffect(game.turn, game.board) {
+        if (game.winner == null && game.isCheckmate(game.turn)) {
+            showCheckDialog.value = null
+            showCheckmateDialog.value = true
+            game.winner = game.turn.opponent()
+            return@LaunchedEffect
+        }
+
         if (game.winner == null && game.isCheck(game.turn)) {
             showCheckDialog.value = game.turn
             delay(2000)
@@ -505,8 +514,17 @@ fun ShogiScreen() {
         CheckDialog(player) { showCheckDialog.value = null }
     }
 
+    if (showCheckmateDialog.value) {
+        CheckmateDialog {
+            showCheckmateDialog.value = false
+            game.resetGame()
+        }
+    }
+
     game.winner?.let { winner ->
-        GameOverDialog(winner) { game.resetGame() }
+        if (!showCheckmateDialog.value) {
+            GameOverDialog(winner) { game.resetGame() }
+        }
     }
 }
 
@@ -547,6 +565,20 @@ fun GameOverDialog(winner: Player, onReset: () -> Unit) {
                 fontFamily = FontFamily.Serif
             )
         },
+        confirmButton = {
+            Button(onClick = onReset) {
+                Text("新しく対局を始める", fontFamily = FontFamily.Serif)
+            }
+        }
+    )
+}
+
+@Composable
+fun CheckmateDialog(onReset: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = { },
+        title = { Text("対局終了", fontFamily = FontFamily.Serif) },
+        text = { Text("詰みました", fontFamily = FontFamily.Serif) },
         confirmButton = {
             Button(onClick = onReset) {
                 Text("新しく対局を始める", fontFamily = FontFamily.Serif)

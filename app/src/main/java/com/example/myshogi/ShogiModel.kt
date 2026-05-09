@@ -213,6 +213,41 @@ fun getAllMoves(state: GameState, player: Player): List<Move> {
     return moves
 }
 
+fun isCheck(state: GameState, player: Player): Boolean {
+    val kingPos = state.board.entries.find { it.value.type == PieceType.KING && it.value.owner == player }?.key ?: return false
+    val opponent = player.opponent()
+
+    for ((pos, piece) in state.board) {
+        if (piece.owner != opponent) continue
+        val directions = getDirections(piece.type, piece.owner)
+        for (dir in directions) {
+            var r = pos.row + dir.first
+            var c = pos.col + dir.second
+            while (r in 0..8 && c in 0..8) {
+                val target = Position(r, c)
+                val targetPiece = state.board[target]
+                if (target == kingPos) return true
+                if (targetPiece != null) break
+                if (!isRanged(piece.type, dir)) break
+                r += dir.first
+                c += dir.second
+            }
+        }
+    }
+    return false
+}
+
+fun getLegalMoves(state: GameState, player: Player): List<Move> {
+    return getAllMoves(state, player).filter { move ->
+        val next = applyMove(state, move)
+        !isCheck(next, player)
+    }
+}
+
+fun isCheckmate(state: GameState, player: Player): Boolean {
+    return isCheck(state, player) && getLegalMoves(state, player).isEmpty()
+}
+
 class ShogiGame {
     var board by mutableStateOf<Map<Position, Piece>>(emptyMap())
     var turn by mutableStateOf(Player.SENTE)
@@ -426,16 +461,13 @@ class ShogiGame {
     }
 
     fun isCheck(player: Player): Boolean {
-        val kingPos = board.entries.find { it.value.type == PieceType.KING && it.value.owner == player }?.key ?: return false
-        val opponent = player.opponent()
-        
-        for (entry in board) {
-            if (entry.value.owner == opponent) {
-                val moves = getValidMoves(entry.key)
-                if (kingPos in moves) return true
-            }
-        }
-        return false
+        val state = GameState(board, turn, capturedSente, capturedGote)
+        return isCheck(state, player)
+    }
+
+    fun isCheckmate(player: Player): Boolean {
+        val state = GameState(board, turn, capturedSente, capturedGote)
+        return isCheckmate(state, player)
     }
 
     fun canPromote(piece: Piece, from: Position, to: Position): Boolean {
