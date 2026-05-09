@@ -541,7 +541,13 @@ fun CapturedPiecesView(
                 modifier = Modifier
                     .padding(horizontal = 2.dp)
                     .size(48.dp)
-                    .clickable { onSelectionChange(Selection.Captured(type, owner)) }
+                    .clickable {
+                        if (isSelected) {
+                            onSelectionChange(null)
+                        } else {
+                            onSelectionChange(Selection.Captured(type, owner))
+                        }
+                    }
                     .background(
                         if (isSelected) Color.Yellow.copy(alpha = 0.4f) else Color.Transparent,
                         shape = ShogiPieceShape
