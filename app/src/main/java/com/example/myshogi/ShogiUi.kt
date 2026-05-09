@@ -399,7 +399,7 @@ fun ShogiScreen() {
                             androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                         else null
                     ) {
-                        Text("人対人", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                        Text("人対人", fontSize = 14.sp, fontFamily = FontFamily.Serif, color = Color(0xFF444444))
                     }
                     OutlinedButton(
                         onClick = {
@@ -420,7 +420,7 @@ fun ShogiScreen() {
                             androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
                         else null
                     ) {
-                        Text("対コンピュータ", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                        Text("対コンピュータ", fontSize = 14.sp, fontFamily = FontFamily.Serif, color = Color(0xFF444444))
                     }
                     OutlinedButton(
                         onClick = { showResetDialog.value = true },
@@ -429,7 +429,7 @@ fun ShogiScreen() {
                             .height(36.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                     ) {
-                        Text("最初からやり直す", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                        Text("最初からやり直す", fontSize = 14.sp, fontFamily = FontFamily.Serif, color = Color(0xFF444444))
                     }
                 }
             }
