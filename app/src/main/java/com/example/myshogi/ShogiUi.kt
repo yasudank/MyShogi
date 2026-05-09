@@ -12,7 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -25,6 +27,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+enum class GameMode { HUMAN_VS_HUMAN, HUMAN_VS_COMPUTER }
 
 sealed class Selection : java.io.Serializable {
     data class Board(val pos: Position) : Selection()
@@ -70,14 +74,43 @@ fun ShogiScreen() {
     val promotionRequest = rememberSaveable { mutableStateOf<PromotionRequest?>(null) }
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
     val showCheckDialog = remember { mutableStateOf<Player?>(null) }
+    val gameMode = rememberSaveable { mutableStateOf(GameMode.HUMAN_VS_HUMAN) }
+    val isComputerThinking = remember { mutableStateOf(false) }
+    val ai = remember { ShogiAI(aiPlayer = Player.GOTE, maxDepth = 3) }
 
-    LaunchedEffect(game.turn) {
+    // 王手チェックとAIターン処理
+    LaunchedEffect(game.turn, game.board) {
         if (game.winner == null && game.isCheck(game.turn)) {
             showCheckDialog.value = game.turn
             delay(2000)
             showCheckDialog.value = null
         } else {
             showCheckDialog.value = null
+        }
+
+        if (gameMode.value == GameMode.HUMAN_VS_COMPUTER
+            && game.turn == Player.GOTE
+            && game.winner == null
+        ) {
+            isComputerThinking.value = true
+            delay(300)
+            val state = GameState(game.board, game.turn, game.capturedSente, game.capturedGote)
+            val move = withContext(Dispatchers.Default) { ai.bestMove(state) }
+            if (move != null && game.winner == null) {
+                game.saveState()
+                val capturedKing = when (move) {
+                    is Move.BoardMove -> state.board[move.to]?.type == PieceType.KING
+                    else -> false
+                }
+                val next = applyMove(state, move)
+                game.board = next.board
+                game.capturedSente = next.capturedSente
+                game.capturedGote = next.capturedGote
+                if (capturedKing) game.winner = Player.GOTE
+                game.turn = next.turn
+                playSound()
+            }
+            isComputerThinking.value = false
         }
     }
 
@@ -122,7 +155,8 @@ fun ShogiScreen() {
                         fontFamily = FontFamily.Serif
                     )
                     
-                    if (game.turn == Player.SENTE && game.history.isNotEmpty() && game.mattaCountGote > 0) {
+                    if (gameMode.value == GameMode.HUMAN_VS_HUMAN
+                        && game.turn == Player.SENTE && game.history.isNotEmpty() && game.mattaCountGote > 0) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
                             onClick = { game.undoMove() },
@@ -131,9 +165,12 @@ fun ShogiScreen() {
                         ) {
                             Text("待った (${game.mattaCountGote})", fontSize = 12.sp, fontFamily = FontFamily.Serif)
                         }
-                    } else if (game.mattaCountGote < 3) {
+                    } else if (gameMode.value == GameMode.HUMAN_VS_HUMAN && game.mattaCountGote < 3) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("残:${game.mattaCountGote}", fontSize = 10.sp, color = Color.Gray)
+                    } else if (gameMode.value == GameMode.HUMAN_VS_COMPUTER && isComputerThinking.value) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("考え中…", fontSize = 12.sp, color = Color.Gray, fontFamily = FontFamily.Serif)
                     }
                 }
                 CapturedPiecesView(game.capturedGote, Player.GOTE, selection.value) { 
@@ -199,7 +236,7 @@ fun ShogiScreen() {
                             modifier = Modifier
                                 .offset(x = cellSize * col, y = cellSize * row)
                                 .size(cellSize)
-                                .clickable(enabled = game.winner == null) {
+                                .clickable(enabled = game.winner == null && !isComputerThinking.value) {
                                     handleBoardClick(pos, game, selection.value, validMoves, { selection.value = it }, { promotionRequest.value = it }, playSound)
                                 }
                                 .background(
@@ -251,7 +288,8 @@ fun ShogiScreen() {
                         fontFamily = FontFamily.Serif
                     )
 
-                    if (game.turn == Player.GOTE && game.history.isNotEmpty() && game.mattaCountSente > 0) {
+                    if (gameMode.value == GameMode.HUMAN_VS_HUMAN
+                        && game.turn == Player.GOTE && game.history.isNotEmpty() && game.mattaCountSente > 0) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
                             onClick = { game.undoMove() },
@@ -260,7 +298,7 @@ fun ShogiScreen() {
                         ) {
                             Text("待った (${game.mattaCountSente})", fontSize = 12.sp, fontFamily = FontFamily.Serif)
                         }
-                    } else if (game.mattaCountSente < 3) {
+                    } else if (gameMode.value == GameMode.HUMAN_VS_HUMAN && game.mattaCountSente < 3) {
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("残:${game.mattaCountSente}", fontSize = 10.sp, color = Color.Gray)
                     }
@@ -269,6 +307,41 @@ fun ShogiScreen() {
             
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            gameMode.value = GameMode.HUMAN_VS_HUMAN
+                            game.resetGame()
+                            selection.value = null
+                            promotionRequest.value = null
+                            isComputerThinking.value = false
+                        },
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        border = if (gameMode.value == GameMode.HUMAN_VS_HUMAN)
+                            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        else null
+                    ) {
+                        Text("人対人", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            gameMode.value = GameMode.HUMAN_VS_COMPUTER
+                            game.resetGame()
+                            selection.value = null
+                            promotionRequest.value = null
+                            isComputerThinking.value = false
+                        },
+                        modifier = Modifier.height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                        border = if (gameMode.value == GameMode.HUMAN_VS_COMPUTER)
+                            androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        else null
+                    ) {
+                        Text("対コンピュータ", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = { showResetDialog.value = true },
                     modifier = Modifier.height(36.dp),
@@ -286,6 +359,7 @@ fun ShogiScreen() {
                 game.resetGame()
                 selection.value = null
                 promotionRequest.value = null
+                isComputerThinking.value = false
                 showResetDialog.value = false
             },
             onDismiss = { showResetDialog.value = false }
