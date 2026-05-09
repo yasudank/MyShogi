@@ -75,8 +75,21 @@ fun ShogiScreen() {
     val showResetDialog = rememberSaveable { mutableStateOf(false) }
     val showCheckDialog = remember { mutableStateOf<Player?>(null) }
     val gameMode = rememberSaveable { mutableStateOf(GameMode.HUMAN_VS_HUMAN) }
+    val pendingModeChange = rememberSaveable { mutableStateOf<GameMode?>(null) }
     val isComputerThinking = remember { mutableStateOf(false) }
     val ai = remember { ShogiAI(aiPlayer = Player.GOTE, maxDepth = 3) }
+
+    fun isGameInProgress(): Boolean = game.history.isNotEmpty() && game.winner == null
+
+    fun applyModeChangeAndReset(targetMode: GameMode?) {
+        if (targetMode != null) {
+            gameMode.value = targetMode
+        }
+        game.resetGame()
+        selection.value = null
+        promotionRequest.value = null
+        isComputerThinking.value = false
+    }
 
     // 王手チェックとAIターン処理
     LaunchedEffect(game.turn, game.board) {
@@ -312,11 +325,14 @@ fun ShogiScreen() {
                 ) {
                     OutlinedButton(
                         onClick = {
-                            gameMode.value = GameMode.HUMAN_VS_HUMAN
-                            game.resetGame()
-                            selection.value = null
-                            promotionRequest.value = null
-                            isComputerThinking.value = false
+                            if (gameMode.value != GameMode.HUMAN_VS_HUMAN) {
+                                if (isGameInProgress()) {
+                                    pendingModeChange.value = GameMode.HUMAN_VS_HUMAN
+                                    showResetDialog.value = true
+                                } else {
+                                    applyModeChangeAndReset(GameMode.HUMAN_VS_HUMAN)
+                                }
+                            }
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -330,11 +346,14 @@ fun ShogiScreen() {
                     }
                     OutlinedButton(
                         onClick = {
-                            gameMode.value = GameMode.HUMAN_VS_COMPUTER
-                            game.resetGame()
-                            selection.value = null
-                            promotionRequest.value = null
-                            isComputerThinking.value = false
+                            if (gameMode.value != GameMode.HUMAN_VS_COMPUTER) {
+                                if (isGameInProgress()) {
+                                    pendingModeChange.value = GameMode.HUMAN_VS_COMPUTER
+                                    showResetDialog.value = true
+                                } else {
+                                    applyModeChangeAndReset(GameMode.HUMAN_VS_COMPUTER)
+                                }
+                            }
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -363,13 +382,14 @@ fun ShogiScreen() {
     if (showResetDialog.value) {
         ResetConfirmationDialog(
             onConfirm = {
-                game.resetGame()
-                selection.value = null
-                promotionRequest.value = null
-                isComputerThinking.value = false
+                applyModeChangeAndReset(pendingModeChange.value)
+                pendingModeChange.value = null
                 showResetDialog.value = false
             },
-            onDismiss = { showResetDialog.value = false }
+            onDismiss = {
+                pendingModeChange.value = null
+                showResetDialog.value = false
+            }
         )
     }
 
