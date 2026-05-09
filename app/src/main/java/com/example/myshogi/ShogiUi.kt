@@ -94,7 +94,8 @@ fun ShogiScreen() {
     val gameMode = rememberSaveable { mutableStateOf(GameMode.HUMAN_VS_HUMAN) }
     val pendingModeChange = rememberSaveable { mutableStateOf<GameMode?>(null) }
     val isComputerThinking = remember { mutableStateOf(false) }
-    val ai = remember { ShogiAI(aiPlayer = Player.GOTE, maxDepth = 3) }
+    val aiDifficulty = rememberSaveable { mutableStateOf(3) }
+    val ai = remember(aiDifficulty.value) { ShogiAI(aiPlayer = Player.GOTE, maxDepth = aiDifficulty.value) }
 
     fun isGameInProgress(): Boolean = game.history.isNotEmpty() && game.winner == null
 
@@ -430,6 +431,42 @@ fun ShogiScreen() {
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                     ) {
                         Text("最初からやり直す", fontSize = 14.sp, fontFamily = FontFamily.Serif, color = Color(0xFF444444))
+                    }
+                }
+                if (gameMode.value == GameMode.HUMAN_VS_COMPUTER) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            "難易度:",
+                            fontSize = 13.sp,
+                            fontFamily = FontFamily.Serif,
+                            color = Color(0xFF444444)
+                        )
+                        listOf(2 to "弱い", 3 to "普通", 4 to "強い").forEach { (level, label) ->
+                            val selected = aiDifficulty.value == level
+                            OutlinedButton(
+                                onClick = { aiDifficulty.value = level },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp),
+                                contentPadding = PaddingValues(0.dp),
+                                border = if (selected)
+                                    androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                                else null
+                            ) {
+                                Text(
+                                    label,
+                                    fontSize = 13.sp,
+                                    fontFamily = FontFamily.Serif,
+                                    color = Color(0xFF444444),
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
                     }
                 }
             }
