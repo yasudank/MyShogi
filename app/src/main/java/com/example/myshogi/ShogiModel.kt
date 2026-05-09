@@ -105,6 +105,114 @@ fun applyMove(state: GameState, move: Move): GameState {
     return GameState(newBoard, state.turn.opponent(), newCapturedSente, newCapturedGote)
 }
 
+// ---- Pure functions for AI (operate on immutable GameState) ----
+
+fun getDirections(type: PieceType, owner: Player): List<Pair<Int, Int>> {
+    val forward = if (owner == Player.SENTE) -1 else 1
+    return when (type) {
+        PieceType.PAWN   -> listOf(forward to 0)
+        PieceType.LANCE  -> listOf(forward to 0)
+        PieceType.KNIGHT -> listOf(forward * 2 to -1, forward * 2 to 1)
+        PieceType.SILVER -> listOf(forward to 0, forward to -1, forward to 1, -forward to -1, -forward to 1)
+        PieceType.GOLD, PieceType.PROMOTED_PAWN, PieceType.PROMOTED_LANCE,
+        PieceType.PROMOTED_KNIGHT, PieceType.PROMOTED_SILVER ->
+            listOf(forward to 0, forward to -1, forward to 1, 0 to -1, 0 to 1, -forward to 0)
+        PieceType.BISHOP          -> listOf(1 to 1, 1 to -1, -1 to 1, -1 to -1)
+        PieceType.ROOK            -> listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1)
+        PieceType.KING            -> listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1, 1 to 1, 1 to -1, -1 to 1, -1 to -1)
+        PieceType.PROMOTED_BISHOP -> listOf(1 to 1, 1 to -1, -1 to 1, -1 to -1, 1 to 0, -1 to 0, 0 to 1, 0 to -1)
+        PieceType.PROMOTED_ROOK   -> listOf(1 to 0, -1 to 0, 0 to 1, 0 to -1, 1 to 1, 1 to -1, -1 to 1, -1 to -1)
+    }
+}
+
+fun isRanged(type: PieceType, dir: Pair<Int, Int>): Boolean = when (type) {
+    PieceType.LANCE                              -> true
+    PieceType.BISHOP, PieceType.PROMOTED_BISHOP -> dir.first != 0 && dir.second != 0
+    PieceType.ROOK,   PieceType.PROMOTED_ROOK   -> dir.first == 0 || dir.second == 0
+    else -> false
+}
+
+fun canPromote(piece: Piece, from: Position, to: Position): Boolean {
+    if (piece.type.name.startsWith("PROMOTED") || piece.type == PieceType.GOLD || piece.type == PieceType.KING) return false
+    return if (piece.owner == Player.SENTE) from.row <= 2 || to.row <= 2
+    else from.row >= 6 || to.row >= 6
+}
+
+fun mustPromote(piece: Piece, to: Position): Boolean = when (piece.type) {
+    PieceType.PAWN, PieceType.LANCE ->
+        (piece.owner == Player.SENTE && to.row == 0) || (piece.owner == Player.GOTE && to.row == 8)
+    PieceType.KNIGHT ->
+        (piece.owner == Player.SENTE && to.row <= 1) || (piece.owner == Player.GOTE && to.row >= 7)
+    else -> false
+}
+
+fun isLegalDrop(board: Map<Position, Piece>, type: PieceType, owner: Player, pos: Position): Boolean {
+    if (type == PieceType.PAWN || type == PieceType.LANCE) {
+        if (owner == Player.SENTE && pos.row == 0) return false
+        if (owner == Player.GOTE && pos.row == 8) return false
+    }
+    if (type == PieceType.KNIGHT) {
+        if (owner == Player.SENTE && pos.row <= 1) return false
+        if (owner == Player.GOTE && pos.row >= 7) return false
+    }
+    if (type == PieceType.PAWN) {
+        for (r in 0..8) {
+            val p = board[Position(r, pos.col)]
+            if (p != null && p.owner == owner && p.type == PieceType.PAWN) return false
+        }
+    }
+    return true
+}
+
+fun getAllMoves(state: GameState, player: Player): List<Move> {
+    val moves = mutableListOf<Move>()
+
+    // 盤上の駒の移動
+    for ((pos, piece) in state.board) {
+        if (piece.owner != player) continue
+        val directions = getDirections(piece.type, piece.owner)
+        for (dir in directions) {
+            var r = pos.row + dir.first
+            var c = pos.col + dir.second
+            while (r in 0..8 && c in 0..8) {
+                val target = Position(r, c)
+                val targetPiece = state.board[target]
+                if (targetPiece == null || targetPiece.owner != player) {
+                    val mustProm = mustPromote(piece, target)
+                    val canProm  = canPromote(piece, pos, target)
+                    when {
+                        mustProm -> moves.add(Move.BoardMove(pos, target, true))
+                        canProm  -> {
+                            moves.add(Move.BoardMove(pos, target, true))
+                            moves.add(Move.BoardMove(pos, target, false))
+                        }
+                        else     -> moves.add(Move.BoardMove(pos, target, false))
+                    }
+                }
+                if (targetPiece != null) break
+                if (!isRanged(piece.type, dir)) break
+                r += dir.first
+                c += dir.second
+            }
+        }
+    }
+
+    // 持ち駒の打ち
+    val hand = if (player == Player.SENTE) state.capturedSente else state.capturedGote
+    for (type in hand.toSet()) {
+        for (r in 0..8) {
+            for (c in 0..8) {
+                val pos = Position(r, c)
+                if (state.board[pos] == null && isLegalDrop(state.board, type, player, pos)) {
+                    moves.add(Move.Drop(type, pos, player))
+                }
+            }
+        }
+    }
+
+    return moves
+}
+
 class ShogiGame {
     var board by mutableStateOf<Map<Position, Piece>>(emptyMap())
     var turn by mutableStateOf(Player.SENTE)
