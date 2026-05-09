@@ -50,6 +50,23 @@ val ShogiPieceShape = GenericShape { size, _ ->
     close()
 }
 
+private val capturedPieceOrder = mapOf(
+    PieceType.PAWN to 0,
+    PieceType.LANCE to 1,
+    PieceType.KNIGHT to 2,
+    PieceType.SILVER to 3,
+    PieceType.GOLD to 4,
+    PieceType.BISHOP to 5,
+    PieceType.ROOK to 6,
+    PieceType.KING to 7,
+    PieceType.PROMOTED_PAWN to 0,
+    PieceType.PROMOTED_LANCE to 1,
+    PieceType.PROMOTED_KNIGHT to 2,
+    PieceType.PROMOTED_SILVER to 3,
+    PieceType.PROMOTED_BISHOP to 5,
+    PieceType.PROMOTED_ROOK to 6
+)
+
 @Composable
 fun ShogiScreen() {
     val context = LocalContext.current
@@ -593,6 +610,10 @@ fun CapturedPiecesView(
     selection: Selection?,
     onSelectionChange: (Selection?) -> Unit
 ) {
+    val sortedCaptured = remember(captured) {
+        captured.sortedBy { capturedPieceOrder[it] ?: Int.MAX_VALUE }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -602,7 +623,7 @@ fun CapturedPiecesView(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        captured.forEach { type ->
+        sortedCaptured.forEach { type ->
             val isSelected = selection is Selection.Captured && selection.type == type && selection.owner == owner
             Box(
                 modifier = Modifier
