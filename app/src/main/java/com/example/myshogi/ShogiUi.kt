@@ -307,7 +307,10 @@ fun ShogiScreen() {
             
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     OutlinedButton(
                         onClick = {
                             gameMode.value = GameMode.HUMAN_VS_HUMAN
@@ -316,7 +319,9 @@ fun ShogiScreen() {
                             promotionRequest.value = null
                             isComputerThinking.value = false
                         },
-                        modifier = Modifier.height(36.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         border = if (gameMode.value == GameMode.HUMAN_VS_HUMAN)
                             androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
@@ -332,7 +337,9 @@ fun ShogiScreen() {
                             promotionRequest.value = null
                             isComputerThinking.value = false
                         },
-                        modifier = Modifier.height(36.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         border = if (gameMode.value == GameMode.HUMAN_VS_COMPUTER)
                             androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
@@ -340,14 +347,15 @@ fun ShogiScreen() {
                     ) {
                         Text("対コンピュータ", fontSize = 14.sp, fontFamily = FontFamily.Serif)
                     }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                OutlinedButton(
-                    onClick = { showResetDialog.value = true },
-                    modifier = Modifier.height(36.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp)
-                ) {
-                    Text("最初からやり直す", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                    OutlinedButton(
+                        onClick = { showResetDialog.value = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(36.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+                    ) {
+                        Text("最初からやり直す", fontSize = 14.sp, fontFamily = FontFamily.Serif)
+                    }
                 }
             }
         }
