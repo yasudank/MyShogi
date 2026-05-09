@@ -43,6 +43,68 @@ data class GameState(
     val capturedGote: List<PieceType>
 ) : Serializable
 
+sealed class Move : Serializable {
+    data class BoardMove(val from: Position, val to: Position, val promote: Boolean) : Move()
+    data class Drop(val type: PieceType, val to: Position, val player: Player) : Move()
+}
+
+fun promote(type: PieceType): PieceType = when (type) {
+    PieceType.PAWN    -> PieceType.PROMOTED_PAWN
+    PieceType.LANCE   -> PieceType.PROMOTED_LANCE
+    PieceType.KNIGHT  -> PieceType.PROMOTED_KNIGHT
+    PieceType.SILVER  -> PieceType.PROMOTED_SILVER
+    PieceType.BISHOP  -> PieceType.PROMOTED_BISHOP
+    PieceType.ROOK    -> PieceType.PROMOTED_ROOK
+    else -> type
+}
+
+fun demote(type: PieceType): PieceType = when (type) {
+    PieceType.PROMOTED_PAWN    -> PieceType.PAWN
+    PieceType.PROMOTED_LANCE   -> PieceType.LANCE
+    PieceType.PROMOTED_KNIGHT  -> PieceType.KNIGHT
+    PieceType.PROMOTED_SILVER  -> PieceType.SILVER
+    PieceType.PROMOTED_BISHOP  -> PieceType.BISHOP
+    PieceType.PROMOTED_ROOK    -> PieceType.ROOK
+    else -> type
+}
+
+fun applyMove(state: GameState, move: Move): GameState {
+    val newBoard = state.board.toMutableMap()
+    var newCapturedSente = state.capturedSente
+    var newCapturedGote = state.capturedGote
+
+    when (move) {
+        is Move.BoardMove -> {
+            val piece = newBoard[move.from] ?: return state
+            val target = newBoard[move.to]
+            if (target != null) {
+                val demoted = demote(target.type)
+                if (state.turn == Player.SENTE) {
+                    newCapturedSente = newCapturedSente + demoted
+                } else {
+                    newCapturedGote = newCapturedGote + demoted
+                }
+            }
+            newBoard.remove(move.from)
+            newBoard[move.to] = if (move.promote) Piece(promote(piece.type), piece.owner) else piece
+        }
+        is Move.Drop -> {
+            newBoard[move.to] = Piece(move.type, move.player)
+            if (move.player == Player.SENTE) {
+                val list = newCapturedSente.toMutableList()
+                list.remove(move.type)
+                newCapturedSente = list
+            } else {
+                val list = newCapturedGote.toMutableList()
+                list.remove(move.type)
+                newCapturedGote = list
+            }
+        }
+    }
+
+    return GameState(newBoard, state.turn.opponent(), newCapturedSente, newCapturedGote)
+}
+
 class ShogiGame {
     var board by mutableStateOf<Map<Position, Piece>>(emptyMap())
     var turn by mutableStateOf(Player.SENTE)

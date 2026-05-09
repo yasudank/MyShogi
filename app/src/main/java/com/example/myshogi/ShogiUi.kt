@@ -572,26 +572,4 @@ fun executeMove(from: Position, to: Position, game: ShogiGame, promote: Boolean)
     game.turn = game.turn.opponent()
 }
 
-fun demote(type: PieceType): PieceType {
-    return when (type) {
-        PieceType.PROMOTED_PAWN -> PieceType.PAWN
-        PieceType.PROMOTED_LANCE -> PieceType.LANCE
-        PieceType.PROMOTED_KNIGHT -> PieceType.KNIGHT
-        PieceType.PROMOTED_SILVER -> PieceType.SILVER
-        PieceType.PROMOTED_BISHOP -> PieceType.BISHOP
-        PieceType.PROMOTED_ROOK -> PieceType.ROOK
-        else -> type
-    }
-}
 
-fun promote(type: PieceType): PieceType {
-    return when (type) {
-        PieceType.PAWN -> PieceType.PROMOTED_PAWN
-        PieceType.LANCE -> PieceType.PROMOTED_LANCE
-        PieceType.KNIGHT -> PieceType.PROMOTED_KNIGHT
-        PieceType.SILVER -> PieceType.PROMOTED_SILVER
-        PieceType.BISHOP -> PieceType.PROMOTED_BISHOP
-        PieceType.ROOK -> PieceType.PROMOTED_ROOK
-        else -> type
-    }
-}
