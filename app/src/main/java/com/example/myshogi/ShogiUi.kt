@@ -91,6 +91,32 @@ fun ShogiScreen() {
         isComputerThinking.value = false
     }
 
+    fun handleSenteMatta() {
+        // 対コンピュータで先手番まで進んでいる場合は、人の手+AIの応手をまとめて戻す。
+        if (gameMode.value == GameMode.HUMAN_VS_COMPUTER
+            && game.turn == Player.SENTE
+            && game.history.size >= 2
+            && game.winner == null
+            && game.mattaCountSente > 0
+        ) {
+            game.mattaCountSente--
+            val restoreState = game.history[game.history.size - 2]
+            game.board = restoreState.board
+            game.turn = restoreState.turn
+            game.capturedSente = restoreState.capturedSente
+            game.capturedGote = restoreState.capturedGote
+            game.history = game.history.dropLast(2)
+            selection.value = null
+            promotionRequest.value = null
+            isComputerThinking.value = false
+            return
+        }
+
+        // それ以外（人対人、またはAI思考前）は通常の1手戻し。
+        game.undoMove()
+        isComputerThinking.value = false
+    }
+
     // 王手チェックとAIターン処理
     LaunchedEffect(game.turn, game.board) {
         if (game.winner == null && game.isCheck(game.turn)) {
@@ -106,24 +132,28 @@ fun ShogiScreen() {
             && game.winner == null
         ) {
             isComputerThinking.value = true
-            delay(300)
-            val state = GameState(game.board, game.turn, game.capturedSente, game.capturedGote)
-            val move = withContext(Dispatchers.Default) { ai.bestMove(state) }
-            if (move != null && game.winner == null) {
-                game.saveState()
-                val capturedKing = when (move) {
-                    is Move.BoardMove -> state.board[move.to]?.type == PieceType.KING
-                    else -> false
+            try {
+                delay(300)
+                val state = GameState(game.board, game.turn, game.capturedSente, game.capturedGote)
+                val move = withContext(Dispatchers.Default) { ai.bestMove(state) }
+                if (move != null && game.winner == null) {
+                    game.saveState()
+                    val capturedKing = when (move) {
+                        is Move.BoardMove -> state.board[move.to]?.type == PieceType.KING
+                        else -> false
+                    }
+                    val next = applyMove(state, move)
+                    game.board = next.board
+                    game.capturedSente = next.capturedSente
+                    game.capturedGote = next.capturedGote
+                    if (capturedKing) game.winner = Player.GOTE
+                    game.turn = next.turn
+                    playSound()
                 }
-                val next = applyMove(state, move)
-                game.board = next.board
-                game.capturedSente = next.capturedSente
-                game.capturedGote = next.capturedGote
-                if (capturedKing) game.winner = Player.GOTE
-                game.turn = next.turn
-                playSound()
+            } finally {
+                // キャンセル時も必ず解除し、操作不能状態を防ぐ。
+                isComputerThinking.value = false
             }
-            isComputerThinking.value = false
         }
     }
 
@@ -301,10 +331,20 @@ fun ShogiScreen() {
                         fontFamily = FontFamily.Serif
                     )
 
-                    if (game.turn == Player.GOTE && game.history.isNotEmpty() && game.mattaCountSente > 0) {
+                    val canSenteMatta = when (gameMode.value) {
+                        GameMode.HUMAN_VS_HUMAN ->
+                            game.turn == Player.GOTE && game.history.isNotEmpty() && game.mattaCountSente > 0
+                        GameMode.HUMAN_VS_COMPUTER ->
+                            game.mattaCountSente > 0 && (
+                                (game.turn == Player.GOTE && game.history.isNotEmpty()) ||
+                                (game.turn == Player.SENTE && game.history.size >= 2)
+                            )
+                    }
+
+                    if (canSenteMatta) {
                         Spacer(modifier = Modifier.width(8.dp))
                         TextButton(
-                            onClick = { game.undoMove() },
+                            onClick = { handleSenteMatta() },
                             modifier = Modifier.height(32.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
